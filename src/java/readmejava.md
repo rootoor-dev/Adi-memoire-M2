@@ -67,26 +67,23 @@ int[][] mat = {
 		};
 
 		int[][] C = { { 1, 1, 0, 1, 0, 1, 1, 0, 0 } }; // C has as many cols as A.
-
-		/*
-		 * 
-		 * 
-		 * int n11; int n10; int n01; int n00;
-		 * 
-		 * for (int i = 0; i < mat.length; i++) {
-		 * 
-		 * n11 = 0; n10 = 0; n01 = 0; n00 = 0;
-		 * 
-		 * for (int j = 0; j < mat[0].length; j++) {
-		 * 
-		 * if(mat[i][j] == 1 && C[0][j]==1) { n11++; } if(mat[i][j] == 1 && C[0][j]==0)
-		 * { n10++; } if(mat[i][j] == 0 && C[0][j]==1) { n01++; } if(mat[i][j] == 0 &&
-		 * C[0][j]==0) { n00++; } }
-		 * 
-		 * // fin de parcours d'une ligne System.out.println("Ligne "+(i+1));
-		 * System.out.println("n11 = "+n11+" n10= "+n10+" n01 ="+n01+" n00 ="+n00);
-		 * System.out.println();
-		 * 
-		 * }
-		 */
+ 
+		 int n11; int n10; int n01; int n00;
+		  
+		 for (int i = 0; i < mat.length; i++) {
+		  
+		 n11 = 0; n10 = 0; n01 = 0; n00 = 0;
+		 
+		 for (int j = 0; j < mat[0].length; j++) {
+		  
+		 if(mat[i][j] == 1 && C[0][j]==1) { n11++; } if(mat[i][j] == 1 && C[0][j]==0)
+		 { n10++; } if(mat[i][j] == 0 && C[0][j]==1) { n01++; } if(mat[i][j] == 0 &&
+		 C[0][j]==0) { n00++; } }
+		  
+		 // fin de parcours d'une ligne System.out.println("Ligne "+(i+1));
+		  System.out.println("n11 = "+n11+" n10= "+n10+" n01 ="+n01+" n00 ="+n00);
+		  System.out.println();
+		  
+		 }
+		 
 ```
