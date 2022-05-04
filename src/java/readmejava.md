@@ -94,3 +94,8 @@ for (int i = 0; i < mat.length; i++) { //parcours d'une ligne i
 
 
 ```
+
+# source and inspiration
+
+- http://jtmt.sourceforge.net/
+- 
