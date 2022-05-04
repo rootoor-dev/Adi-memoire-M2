@@ -7,3 +7,4 @@
 - https://math.nist.gov/tnt/download.html
 - https://www.geeksforgeeks.org/sparse-matrix-representation/
 - http://jtmt.sourceforge.net/
+- https://www.programcreek.com/cpp/?Query=machine+learning&action=search_project&submit=Search&isExample=yes
