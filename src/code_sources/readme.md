@@ -8,3 +8,4 @@
 - https://www.geeksforgeeks.org/sparse-matrix-representation/
 - http://jtmt.sourceforge.net/
 - https://www.programcreek.com/cpp/?Query=machine+learning&action=search_project&submit=Search&isExample=yes
+- https://www.sanfoundry.com/  (toutes sortes de codes sources et ce dans n'importe quel langage de programmation)
