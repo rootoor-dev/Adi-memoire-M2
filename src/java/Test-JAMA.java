@@ -60,7 +60,8 @@ public class TestJama {
 			}
 		}
 		
-		
+		//get(i,j)
+		System.out.println(array[0][0]);
 		
 		
 		
