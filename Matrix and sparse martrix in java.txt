@@ -1,0 +1,1297 @@
+1. The class MatrixCRS
+/** A class for a sparse matrix on compressed row format
+ */
+public class MatrixCRS{
+ private double[] value;
+private int columnindex[];
+private int[] rowpointer;
+private int nonzeros;
+private int dimension;
+public MatrixCRS(double[] value,int[] columnindex,int[] rowpointer){
+this.value = value;
+this.columnindex = columnindex;
+this.rowpointer = rowpointer;
+nonzeros = value.length;
+dimension = rowpointer.length-1;
+}
+/**Method for returning the array of values
+ */
+public double[] getValueArray(){return value;}
+/**Method for returning the column index array
+ */
+public int[] getColumnArray(){return columnindex;}
+/**Method for returning the array of pointers
+ */
+public int[] getPointerArray(){return rowpointer;}
+/**Method for returning a column index value
+ */
+public int getColumnindex(int i){return columnindex[i];}
+/**Method for returning a pointer value
+ */
+
+public int getRowpointer(int i){return rowpointer[i];}
+/**Method for returning the dimension of the matrix
+ */
+public int getDimension(){return dimension;}
+/**Method for returning the number of nonzero values of the *matrix
+ */
+public int getNonzeroSize(){return size;}
+/**Method for returning a value
+ */
+public double getValue(int i){return value[i];}
+/**Method for multiplying two matrices on CRS format.
+* This is the guesstimate approach
+*/
+public MatrixCRS times(MatrixCRS B,int arbitrary,int dim1){
+ int arbitrarysize = size*arbitrary;
+ double[] C = new double[arbitrarysize];
+ int[] Cindex = new int[arbitrarysize];
+ int Cpointer[] = new int[dim1+1];
+ Cpointer[0]=0;
+ double scalar = 0.0;
+ int job = 1; int startrowa=0; int startrowb=0;
+int len = -1; int ierr = 0;
+ int jj=0; int jcol=0; int jposition=0;
+int stoprowb=0;int stoprowa = 0;
+ int temp[] = new int[dim1];
+ boolean values = true;
+ double[] valuesB = B.getValueArray();
+ int[] Bcolindex = B.getColumnArray();
+ int[] Bpointer = B.getPointerArray();
+ for(int i=0;i<dimension;i++){temp[i]=-1;}
+ for(int i = 0;i<dimension;i++){
+startrowa = rowpointer[i];
+ stoprowa = rowpointer[i+1]-1;
+for(;startrowa<=stoprowa;startrowa++){
+ scalar = value[startrowa];
+ jj = columnindex[startrowa];
+ startrowb = Bpointer[jj];
+ stoprowb = Bpointer[jj+1]-1;
+ for(;startrowb<=stoprowb;startrowb++){
+ jcol=Bcolindex[startrowb];
+ jposition = temp[jcol];
+ if(jposition == -1){
+ len++;
+ Cindex[len]=jcol;
+ temp[jcol]=len;
+ C[len]=scalar*valuesB[startrowb];
+ }
+ else{
+C[jposition]+=scalar*valuesB[startrowb];
+ }
+ }
+
+ }
+ for(int k=Cpointer[i];k<=len;k++){
+ temp[Cindex[k]]=-1;
+ }
+ Cpointer[i+1]=len+1;
+ }
+return arbitraryToCompressed(C,Cindex,Cpointer,len);
+}
+/** Method for copying this arbitrary sized structure over to a
+*compressed nonzero structure
+*/
+public MatrixCRS arbitraryToCompressed(double[] C,int[] Cindex,int[]
+Cpointer, int len){
+int[] CindexA = new int[len];
+double[] CA = new double[len];
+System.arraycopy(C, 0, CA, 0, len);
+System.arraycopy(Cindex, 0, CindexA, 0, len);
+return new MatrixCRS(CA, CindexA, Cpointer);
+}
+/**Method for multiplying two matrices on CRS format.
+* This is the symbolic approach
+*/
+public MatrixCRS timessymbolic(MatrixCRS B,int dimension){
+ int[] Cindex = new int[dimension];
+ int Cpointer[] = new int[dimension+1];
+ Cpointer[0]=0;
+ int startrowa=0; int startrowb=0;
+ int stoprowb=0;int stoprowa = 0;
+ int len = -1;
+int lentemp = -1;
+ int jj=0; int jcol=0; int jposition=0;
+ boolean test = true;
+ int temp[] = new int[dimension];
+ int[] indexTemp = null;
+ int[] Bindex = B.getColumnArray();
+ int[] Bpointer = B.getPointerArray();
+ for(int i=0;i<dimension;i++){temp[i]=-1;}
+ for(int i = 0;i<dimension;i++){
+startrowa = rowpointer[i];
+ stoprowa = rowpointer[i+1]-1;
+ for(;startrowa<=stoprowa;startrowa++){
+ jj = columnindex[startrowa];
+ startrowb = Bpointer[jj];
+ stoprowb = Bpointer[jj+1]-1;
+ for(;startrowb<=stoprowb;startrowb++){
+ jcol=Bindex[startrowb];
+ jposition = temp[jcol];
+ if(jposition == -1){
+ len++;
+lentemp++;
+ Cindex[lentemp]=jcol;
+ temp[jcol]=len;
+ }
+ }
+ }
+ for(int k = 0;k<=lentemp;k++){temp[Cindex[k]]=-1;}
+ Cpointer[i+1]=len+1;
+
+if(test){
+indexTemp = new int[len+1];
+
+System.arraycopy(Cindex, 0, indexTemp, 0, len+1);
+test = false;
+}
+else{
+if(lentemp>-1){
+int[] a = new int[len+1];
+System.arraycopy(indexTemp, 0, a, 0,indexTemp.length);
+System.arraycopy(Cindex, 0, a, indexTemp.length, lentemp+1);
+indexTemp = a;
+}
+}
+}
+lentemp = -1;
+Cindex = new int[dimension];
+}
+return numMatrixCRS(indexTemp, Cpointer, B);
+}
+/**Method for multiplying two matrices on CRS format.
+* This is the numerical approach
+*/
+public MatrixCRS numMatrixCRS(int[] Cindex, int[] Cpointer, MatrixCRS
+B){
+ double[] C = new double[Cindex.length];
+ double scalar = 0.0;
+ int startrowa=0; int startrowb=0;
+ int len = -1;
+ int jj=0; int jcol=0; int jposition=0;
+ int stoprowb=0;int stoprowa = 0;
+ int temp[] = new int[dimension];
+ double[] valuesB = B.getValueArray();
+ int[] Bindex = B.getColumnArray();
+ int[] Bpointer = B.getPointerArray();
+for(int i=0;i<dimension;i++){temp[i]=-1;}
+ for(int i = 0;i<dimension;i++){
+startrowa = rowpointer[i];
+ stoprowa = rowpointer[i+1]-1;
+ for(;startrowa<=stoprowa;startrowa++){
+ scalar = value[startrowa];
+ jj = columnindex[startrowa];
+ startrowb = Bpointer[jj];
+ stoprowb = Bpointer[jj+1]-1;
+ for(;startrowb<=stoprowb;startrowb++){
+ jcol=Bindex[startrowb];
+ jposition = temp[jcol];
+ if(jposition == -1){
+ len++;
+ temp[jcol]=len;
+ C[len]=scalar*valuesB[startrowb];
+ }
+ else{
+C[jposition]+=scalar*valuesB[startrowb];
+ }
+ }
+ }
+ for(int k=Cpointer[i];k<=len;k++){temp[Cindex[k]]=-1;}
+ }
+return new MatrixCRS(C, Cindex, Cpointer);
+}
+/**Method for multiplying a vector with a matrix
+ */
+ public Vector vectormatrix(Vector v){
+int startrowa = 0,stoprowa = 0;
+double[] value = v.getValueArray();
+Y = new double[value.length];
+for(int i = 0;i<rowpointer.length-1;i++){
+startrowa = rowpointer[i];
+stoprowa = rowpointer[i+1]-1;
+for(;startrowa<=stoprowa;startrowa++){
+Y[i]+=value[startrowa]*value[columnindex[startrowa]];
+}
+}
+return new Vector(Y,Y.length);
+}
+/**Method for multiplying a matrix with a vector
+ */
+public Vector matrixvector(Vector v){
+int startrowa = 0,stoprowa = 0,i = 0;
+double z = 0.0;
+double[] valuea = v.getValueArray();
+Y = new double[value.length];
+for(int j = 0;j<rowpointer.length-1;j++){
+startrowa = rowpointer[j];
+stoprowa = rowpointer[j+1]-1;
+for(;startrowa<=stoprowa;stoprowa++){
+z += valuea[columnindex[startrowa]]*value[startrowa];
+}
+Y[j] = z;
+}
+return new Vector(Y,Y.length);
+}
+}
+
+
+2. The class MatrixCCS
+/** A class for a sparse matrix on compressed coloumn format
+ */
+public class MatrixCCS{
+private double[] value;
+private int[] rowindex;
+private int[] columnpointer;
+private int nonzeros;
+private int dimension;
+public MatrixCCS(double[] value,int[] rowindex,int[] columnpointer){
+this.value = value;
+this.rowindex = rowindex;
+this.columnpointer = columnpointer;
+nonzeros = value.length;
+dimension = columnpointer.length-1;
+}
+/**Method for returning the dimension of the matrix
+ */
+public int getDimension(){return dimension;}
+/**Method for returning the number of nonzero values of
+* the matrix
+ */
+public int getNonzeroSize(){return nonzeros;};
+/**Method for returning the array of values
+ */
+public double[] getValueArray(){return value;}
+/**Method for returning the row index array
+ */
+public int[] getRowArray(){return rowindex;}
+/**Method for returning the array of pointers
+ */
+public int[] getPointerArray(){return columnpointer;}
+/**Method for returning a value
+ */
+public double getValue(int i){return value[i];}
+/**Method for returning a index
+ */
+public int getRowindex(int i){return rowindex[i];}
+/**Method for returning a pointer
+ */
+public int getColumnpointer(int i){return columnpointer[i];}
+/**Method for a matrix-vector product
+ */
+public Vector matrixvector(Vector v){
+int k1,k2,i;
+double[] valuea = v.getValueArray();
+Y = new double[valuea.length];
+for(int j = 0; j<columnpointer.length-1;j++){
+startrow = columnpointer[j];
+stoprow = columnpointer[j+1]-1;
+for(;startrow<=stoprow;startrow++){
+Y[rowindex[startrow]] += valuea[j]*value[startrow];
+}
+}
+return new Vector(Y,Y.length);
+}
+ /**A method for vector-matrix product
+ */
+ public Vector vectormatrix(Vector v){
+int startrow = 0;
+ int stoprow = 0;
+ double z = 0;
+double[] valuea = v.getValueArray();
+ double[] c = new double[valuea.length];
+ for(int i = 0;i<columnpointer.length-1;i++){
+ startrow=columnpointer[i];
+ stoprow =columnpointer[i+1]-1;
+ for(;startrow<=stoprow;startrow++){
+ z += valuea[rowindex[startrow]]*value[startrow];
+ }
+ c[i]=z;
+ z=0;
+ }
+ return new Vector(c,c.length);
+ }
+ /**Method for multiplyiong two matrices on CCS format.
+ */
+ public MatrixCCS times(MatrixCSC B,int arbitrary){
+ double[] C = new double[nonzeros*arbitrary];
+ int[] Cind = new int[nonzeros*arbitrary];
+ int Cpointer[] = new int[dimension+1];
+ Cpointer[0]=0;
+ double scal = 0.0;
+ int job = 1;int l1=0;int l2=0;
+ int len=-1; int jj=0; int jcol=0;
+ int iw[] = new int[dim1];
+ int jpos=0; int kb=0; int zb=0;
+int[] BcolPointer = B.getPointerArray();
+int[] BrowInd = B.getRowArray();
+double[] Bvalue = B.getValueArray();
+ for(int ii=0;ii<dim1;ii++){iw[ii]=-1;}
+ for(int i = 0;i<dim1;i++){
+l1=BcolPointer[i];
+ l2=BcolPointer[i+1]-1;
+ for(;l1<=l2;l1++){
+ scal=Bvalue[l1];
+ jj=BrowInd[l1];
+ kb=columnpointer[jj];
+ zb=columnpointer[jj+1]-1;
+ for(;kb<=zb;kb++){
+ jcol=rowindex[kb];
+ jpos=iw[jcol];
+ if(jpos==-1){
+ len++;
+ Cind[len]=jcol;
+ iw[jcol]=len;
+ C[len]=scal*value[kb];
+ }
+ else{
+C[jpos]+=scal*value[kb];
+}
+ }
+
+ }
+ for(int kk=Cpointer[i];kk<=len;kk++){iw[Cind[kk]]=-1;}
+ Cpointer[i+1]=len+1;
+ }
+return new MatrixCCS(C,Cind,Cpointer);
+}
+}
+
+
+3. The class MatrixCOOR
+/**A class for a sparse matrix on coordinat storage format sorted
+ *after rows
+ */
+ public class MatrixCOOR{
+ private double[] value;
+ private int[] columnindex;
+ private int[] rowindex;
+ private int nonzeros;
+ private int dimension;
+ public MatrixCoord(double[] value,int[] coloumnindex,int[] rowindex,int
+dimension){
+ this.value = value;
+ this.columnindex = columnindex;
+ this.rowind = rowindex;
+ this.dimension = dimension;
+ nonzeros = value.length;
+ }
+
+ /**Method for returning the dimension of the matrix
+ */
+public int getDimension(){return dimension;}
+ /**Method for returning the number of nonzero values of
+* the matrix
+ */
+public int getNonzeroSize(){return nonzeros;};
+ /**Method for returning the array of values
+ */
+ public double[] getValueArray(){return value;}
+
+/**Method for returning the column index array
+ */
+ public int[] getColumnArray(){return columnindex;}
+
+/**Method for returning the row index array
+ */
+ public int[] getRowArray(){return rowindex;}
+
+ /**Method for returning a column index value
+ */
+ public int getColumnindex(int i){return columnindex[i];}
+
+/**Method for returning a row index value
+ */
+ public int getRowindex(int i){return rowindex[i];}
+
+/**Method for returning a value
+ */
+ public double getValue(int i){return value[i];}
+
+ /**Method for returning a value
+ */
+ public double getValue(int i,int j){
+ double x = 0;
+ for(int k=0;k<rowindex.length;k++){
+ if(rowindex[k]>i)break;
+ if(rowindex[k]==i)
+ if(columnindex[k]==j)x=value[k];
+ }
+ return x;
+ }
+
+ /**Method for multiplying two matrices on coordinate storage
+ *format sorted by rows
+ */
+ public MatrixCOOR times(MatrixCOOR B, int arbitrary){
+ int k=0;int z=0;
+ double valuea=0;
+ int jcol=0;int jpos=0;int len=-1;int ja=0;
+ double valuec[] = new double[arbitrary*nonzeros];
+ int iC[] = new int[arbitrary*nonzeros];
+ int jC[] = new int[arbitrary*nonzeros];
+ int jw[] = new int[dimension];
+ boolean test = true;
+ boolean test1 = true;
+ boolean test2 = true;
+ for(int a=0;a<dimension;a++){jw[a]=-1;}
+ for(int i=0;i<dimension;i++){
+ while(test1&&k<value.length){
+ if(rowindex[k]==i){
+ ja=columnindex[k];
+ valuea=value[k];
+ for(int j=0;j<B.getNonzeroSize()&&test;j++){
+ if(ja==B.getRowindex(j)){
+ z=j;
+ test=false;
+ }
+ }
+ test = true;
+ while(test2&&z<B.getNonzeroSize()){
+ if(ja== B.getRowindex (z)) {
+ jcol=B.getColumnindex(z);
+ jpos=jw[jcol];
+ if(jpos==-1){
+ len++;
+ iC[len]=i;
+ jC[len]=jcol;
+ jw[jcol]=len;
+ valuec[len]=valuea*B.getValue(z);
+ }
+ else{
+ valuec[jpos]=valuec[jpos]+valuea*B.getValue(z);
+ }
+ z++;
+ }
+ else{test2=false;}
+ }
+ z=0;
+ test2=true;
+ k++;
+ }
+
+ else{test1=false;}
+ }
+ test1=true;
+ for(int b=0;b<dimension;b++)jw[b]=-1;
+ }
+ return new MatrixCOOR(valuec,jC,iC,B.getDimension());
+ }
+
+ /** Method for a matrix-vector product, matrix is
+* stored on COOR
+ */
+ public Vector matrixvector(Vector v){
+ int k = 0;
+boolean test = true;
+ double z = 0.0;
+double[] vec = v.getValueArray();
+ double[] Y = new double[vec.length];
+ for(int i = 0;i<vec.length;i++){
+ while(test&&(k<rowindex.length)){
+ if(rowindex[k]==i){
+ z += value[k]*vec[columnindex[k]];
+ k++;
+ }
+ else {test=false;}
+ }
+ Y[i] = z;
+ test = true;
+ z = 0;
+ }
+ return new Vector(Y,Y.length);
+ }
+
+/**Method for a vector-matrix product, matrix stored on COOR
+ */
+ public Vector vectormatrix(Vector v){
+ int j = 0;int k = 0;
+double[] vec = v.getValuArray();
+ double[] Y = new double[vec.length];
+ boolean test = true;
+ for(int i = 0;i< vec.length;i++){
+ while(test&&(k<rowindex.length)){
+ if(rowindex[k]==i){
+ j = columnindex[k];
+ Y[j]+=value[k]*vec[j];
+ k++;
+ }
+ else {test=false;}
+ }
+ test = true;
+ }
+ return new Vector(Y,Y.length);
+ }
+ }
+
+ 4. The class MatrixCOOC
+/** A class for a sparse matrix on coordinat storage format sorted *
+after columns
+*/
+ public class MatrixCOOC{
+ private double[] value;
+ private int[] columnindex;
+ private int[] rowindex;
+ private int nonzeros;
+ private int dimension;
+
+ public MatrixCOOC(double[] value,int[] coloumnindex,int[] rowindex,int
+dimension){
+ this.value = value;
+ this.columnindex = columnindex;
+ this.rowindex = rowindex;
+ this.dimension = dimension;
+ nonzeros = value.length;
+ }
+
+ /**Method for returning the dimension of the matrix
+ */
+public int getDimension(){return dimension;}
+ /** Method for returning the number of nonzero values of
+* the matrix
+ */
+public int getNonzeroSize(){return nonzeros;};
+ /**Method for returning the array of values
+ */
+ public double[] getValueArray(){return value;}
+
+/**Method for returning the column index array
+ */
+ public int[] getColumnArray(){return columnindex;}
+
+/**Method for returning the row index array
+ */
+ public int[] getRowArray(){return rowindex;}
+
+ /**Method for returning a column index value
+ */
+ public int getColumnindex(int i){return columnindex[i];}
+
+/**Method for returning a row index value
+ */
+ public int getRowindex(int i){return rowindex[i];}
+
+/**Method for returning a value
+ */
+ public double getValue(int i){return value[i];}
+
+ /**Method for returning a value
+ */
+ public double getValue(int i,int j){
+ double x = 0;
+ for(int k=0;k<rowindex.length;k++){
+ if(rowindex[k]>i)break;
+ if(rowindex[k]==i)
+ if(columnindex[k]==j)x=value[k];
+ }
+ return x;
+ }
+
+/** Method for multiplying two matrices on coordinate storage
+ * format(COOC)
+ */
+ public MatrixCOOC times(MatrixCOOC B, int arbitrary){
+ int k=0;int z=0;
+ double valuea=0;
+ int jcol=0; int jpos=0;int len=-1;int ja=0;
+ double valuec[] = new double[arbitrary*nonzeros];
+ int iC[] = new int[arbitrary*nonzeros];
+ int jC[] = new int[arbitrary*nonzeros];
+ int jw[] = new int[dimension];
+ boolean test = true;boolean test1 = true;
+boolean test2 = true;
+ for(int a=0;a<dimension;a++){jw[a]=-1;}
+ for(int i=0;i<dimension;i++){
+ while(test1&&k<value.length){
+ if(B.getColumnindex(k)==i){
+ ja=B.getRowindex(k);
+ valuea=B.getValue(k);
+ for(int j=0;j<B.getNonzeroSize()&&test;j++){
+ if(ja==columnindex[j]){
+ z=j;
+ test=false;
+ }
+ }
+ test = true;
+ while(test2&&z<B.getNonzeroSize()){
+ if(ja==columnindex[z]){
+ jcol=rowindex[z];
+ jpos=jw[jcol];
+ if(jpos==-1){
+ len=len+1;
+ iC[len]=jcol;
+ jC[len]=i;
+ jw[jcol]=len;
+ valuec[len]=valuea*value[z];
+ }
+ else{
+ valuec[jpos]+=valuea*value[z];
+ }
+ z++;
+ }
+ else {test2=false;}
+ }
+ z=0;
+ test2=true;
+ k++;
+ }
+ else{test1=false;}
+
+ }
+ test1=true;
+ for(int b=0;b<dimension;b++)jw[b]=-1;
+ }
+ return new MatrixCOOC(valuec,jC,iC,B.getDimension());
+ }
+
+
+/**Method for a matrix-vector product, matrix is
+* stored on COOC
+ */
+ public Vector matrixvector(Vector v){
+ int j = 0;
+int k = 0;
+boolean test = true;
+double[] vec = v.getValueArray();
+ double Y[] = new double[vec.length];
+ for(int i = 0;i<vec.length;i++){
+ while(test&&(k<rowindex.length)){
+ if(columnindex[k]==i){
+ j = rowindex[k];
+ Y[j] += value[k]*vec[columnindex[k]];
+ k++;
+ }
+ else {test=false;}
+ }
+ test=true;
+ }
+ return new Vector(Y,Y.length);
+ }
+
+/**Method for a vector-matrix multiplication, matrix is stored
+* on COOC
+ */
+ public Vector vectormatrix(Vector v){
+ int k = 0;
+boolean test = true;
+ double z = 0.0;
+double[] vec = v.getValueArray();
+ double[] Y = new double[vec.length];
+ for(int i = 0;i<v.getSize();i++){
+ while(test&&(k<rowindex.length)){
+ if(columnindex[k]==i){
+ z += value[k]*vec[rowindex[k]];
+ k++;
+ }
+ else {test=false;}
+ }
+ Y[i] = z;
+ test=true;
+ }
+ return new Vector(Y,Y.length);
+ }
+ }
+
+ 5. The class Vector
+/**The class Vector, this class stores a full vector
+ */
+ public class Vector {
+ double[] value;
+ int size;
+
+ public Vector(double[] value,int size){
+ this.size=size;
+ this.value=value;
+ }
+
+ /**Method for returning a value in the vector
+ */
+ public double getValue(int i){
+ return value[i];
+ }
+
+ /**Method for returning the size of the vector
+ */
+ public int getSize(){
+ return size;
+ }
+
+ /**Method for returning the value array of the vector
+ */
+ public double[] getValueArray(){
+ return value;
+ }
+ }
+
+
+1. The class SparseArrays
+/**A class to represent sparse matrices in Java as Sparse Arrays.
+ */
+ public class SparseArrays{
+ private double[][] Avalue;
+ private int[][] Aindex;
+ private int dimension;
+private int nonzero;
+private int stop;
+
+ public SparseArrays(double[][] Avalue,int[][] Aindex, int nnz){
+ this.Avalue = Avalue;
+ this.Aindex = Aindex;
+ dimension = Avalue.length;
+nonzero = nnz;
+ }
+
+ /**A method for setting the value array
+ */
+ public void setValueArray(double[][] value){Avalue = value;}
+
+ /**A method for setting the value array
+ */
+ public void setIndexArray(int[][] index){Aindex = index;}
+
+
+/**A method for getting the value array
+ */
+ public double[][] getValueArray(){return Avalue;}
+
+ /**A method for getting the value array
+ */
+ public int[][] getIndexArray(){return Aindex;}
+
+ /** A method for multiplying a matrix with a vector
+ */
+ public Vector matrixvector(Vector V){
+double[] v = V.getValueArray();
+ double x = 0.00;
+ double[] value;
+ int[] index;
+ int k = 0;
+ int vlength = 0;
+ double[] c = new double[v.length];
+ int alength = Avalue.length;
+ for(int i=0;i<alength;i++){
+ value = Avalue[i];
+ index = Aindex[i];
+ vlength = value.length;
+ for(int j=0;j<vlength;j++){
+ x += value[j]*v[index[j]];
+ }
+ c[i]=x;
+ x = 0;
+ }
+ return new Vector(c, c.length);
+ }
+
+ /** A method for multiplying a vector with a matrix
+ */
+public Vector vectormatrix(Vector v){
+double[] valuerow = null;
+double[] bvalue = v.getValueArray();
+int[] indexrow = null;
+int alength = Avalue.length;
+double[] cvalue = new double[bvalue.length];
+double value = 0;
+for(int i = 0;i<alength;i++){
+valuerow = Avalue[i];
+indexrow = Aindex[i];
+double val = bvalue[i];
+int vlength = valuerow.length;
+for(int j = 0; j<vlength;j++){
+cvalue[indexrow[j]] += value*valuerow[j];
+}
+}
+return new Vector(cvalue, cvalue.length);
+}
+/** A method for matrix multiplication, this routine uses the
+* idea with merging sparse list of integers and addition of
+* sparse vectors
+*/
+public SparseArrays times(SparseArrays B){
+double[][] Bvalue = B.getValueArray();
+int[][] Bindex = B.getIndexArray();
+double[][] Cvalue = new double[dimension][1];
+int[][] Cindex = new int[dimension][1];
+int nonzero = 0;
+for(int i = 0;i<dimension;i++){
+double[] avalue = Avalue[i];
+int[] aindex = Aindex[i];
+boolean[] switchArray = new boolean[dimension];
+double[] tempValue = new double[dimension];
+
+for(int ii = 0;ii<aindex.length;ii++){
+int index = aindex[ii];
+double value = avalue[ii];
+double[] bvalue = Bvalue[index];
+int[] bindex = Bindex[index];
+for(int jj=0;jj<bindex.length;jj++){
+tempValue[bindex[jj]] += value*bvalue[jj];
+if(!switchArray[bindex[jj]]){
+switchArray[bindex[jj]] = true;
+nonzero++;
+}
+}
+}
+double[] cvalue = new double[num];
+int[] cindex = new int[num];
+int k = 0;
+for(int jj = 0;jj<aindex.length;jj++){
+int index = aindex[jj];
+int[] bindex = Bindex[index];
+for(int zz = 0;zz<bindex.length;zz++){
+if(switchArray[bindex[zz]]){
+cindex[zz] = bindex[zz];
+switchArray[bindex[zz]] = false;
+k++;
+}
+}
+}
+for(int jj=0;jj<cindex.length;jj++){
+cvalue[jj] = tempValue[cindex[jj]];
+}
+Cvalue[i] = cvalue;
+Cindex[i] = cindex;
+}
+return new SparseArrays(Cvalue, Cindex, nonzero);
+}
+/** A method for matrix multiplication, this routine uses the
+ *idea of contiguously storing of values and indexes
+ * and the use of System.arraycopy()
+ */
+public SparseArrays timesA(SparseArrays B){
+double[][] Cvalue = new double[dimension][1];
+int[][] Cindex = new int[dimension][1];
+int[] temp = new int[dimension];
+double[] tempValue = new double[dimension];
+int[] tempIndex = new int[dimension];
+double[][] Bvalue = B.getValueArray();
+int[][] Bindex = B.getIndexArray();
+int nonzero;
+double scalar = 0;
+int len = -1;
+int index = 0;
+int jcol = 0;
+int jpos = 0;
+for(int i = 0;i<temp.length;i++){temp[i]=-1;}
+long l1 = System.currentTimeMillis();
+for(int i = 0;i<Avalue.length;i++){
+double[] avalue = Avalue[i];
+int[] aindex = Aindex[i];
+
+for(int j = 0;j<avalue.length;j++){
+scalar = avalue[j];
+index = aindex[j];
+double[] bvalue = Bvalue[index];
+int[] bindex = Bindex[index];
+for(int k = 0;k<bvalue.length;k++){
+jcol = bindex[k];
+jpos = temp[jcol];
+if(jpos == -1){
+len++;
+nonzero++;
+tempIndex[len] = jcol;
+temp[jcol] = len;
+tempValue[len] = scalar*bvalue[k];
+}else{
+tempValue[jpos]+=scalar*bvalue[k];
+}
+}
+}
+double[] cvalue = new double[len+1];
+int[] cindex = new int[len+1];
+System.arraycopy(tempValue, 0, cvalue, 0,len+1);
+System.arraycopy(tempIndex, 0, cindex, 0,len+1);
+Cvalue[i] = cvalue;
+Cindex[i] = cindex;
+for(int ii = 0;ii<len+1;ii++){temp[tempIndex[ii]]=-1;}
+len = -1;
+}
+return new SparseArrays(Cvalue, Cindex, nonzero);
+}
+/** A method for matrix multiplication, this routine uses the
+ *idea of contiguously storing of values and indexes
+ * and the use of for-loops
+ */
+public SparseArrays timesB(SparseArrays B){
+double[][] Cvalue = new double[dimension][1];
+int[][] Cindex = new int[dimension][1];
+int[] temp = new int[dimension];
+double[] tempValue = new double[dimension];
+int[] tempIndex = new int[dimension];
+double[][] Bvalue = B.getValueArray();
+int[][] Bindex = B.getIndexArray();
+int nonzero;
+double scalar = 0;
+int len = -1;
+int index = 0;
+int jcol = 0;
+int jpos = 0;
+for(int i = 0;i<temp.length;i++){temp[i]=-1;}
+long l1 = System.currentTimeMillis();
+for(int i = 0;i<Avalue.length;i++){
+double[] avalue = Avalue[i];
+int[] aindex = Aindex[i];
+for(int j = 0;j<avalue.length;j++){
+scalar = avalue[j];
+
+index = aindex[j];
+double[] bvalue = Bvalue[index];
+int[] bindex = Bindex[index];
+for(int k = 0;k<bvalue.length;k++){
+jcol = bindex[k];
+jpos = temp[jcol];
+if(jpos == -1){
+len++;
+nonzero++;
+tempIndex[len] = jcol;
+temp[jcol] = len;
+tempValue[len] = scalar*bvalue[k];
+}else{
+tempValue[jpos]+=scalar*bvalue[k];
+}
+}
+}
+double[] cvalue = new double[len+1];
+int[] cindex = new int[len+1];
+for(int ii = 0;ii<len+1;ii++){cvalue[ii]=tempValue[ii];}
+for(int ii = 0;ii<len+1;ii++){cindex[ii]=tempIndex[ii];}
+Cvalue[i] = cvalue;
+Cindex[i] = cindex;
+for(int ii = 0;ii<len+1;ii++){temp[tempIndex[ii]]=-1;}
+len = -1;
+}
+return new SparseArrays(Cvalue, Cindex, nonzero);
+}
+/** A method for matrix addition, this routine uses the
+* idea with merging sparse list of integers and addition of
+* sparse vectors
+*/
+public SparseArrays add(SparseArrays B){
+int[][] Bindex = B.getIndexArray();
+double[][] Bvalue = B.getValueArray();
+int[][] Cindex = new int[dimension][1];
+double[][] Cvalue = new double[dimension][1];
+int nonzero = 0;
+for(int i = 0;i<dimension;i++){
+int[] bindex = Bindex[i];
+double[] bvalue = Bvalue[i];
+int[] aindex = Aindex[i];
+double[] avalue = Avalue[i];
+boolean[] switchArray = new boolean[dimension];
+double[] tempValue = new double[dimension];
+for(int ii = 0;ii<aindex.length;ii++){
+switchArray[aindex[ii]] = true;
+tempValue[aindex[ii]] = avalue[ii];
+nonzero++
+}
+num = aindex.length;
+for(int ii = 0;ii<bindex.length;ii++){
+if(!switchArray[bindex[ii]]){
+switchArray[bindex[ii]] = true;
+tempValue[bindex[ii]] = bvalue[ii];
+nonzero++;
+
+}
+else{
+tempValue[bindex[ii]] += bvalue[ii];
+}
+}
+int[] cindex = new int[num];
+double[] cvalue = new double[num];
+for(int ii = 0;ii<aindex.length;ii++){
+cindex[ii] = aindex[ii];
+switchArray[aindex[ii]] = false;
+}
+for(int ii = aindex.length,jj=0;ii<bindex.length;ii++,jj++){
+if(switchArray[bindex[jj]]){
+cindex[ii] = bindex[jj];
+}
+}
+for(int ii = 0;ii<cvalue.length;ii++){
+cvalue[ii] = tempValue[cindex[ii]];
+}
+Cindex[i] = cindex;
+Cvalue[i] = cvalue;
+nonzero += num;
+}
+return new SparseArrays(Cvalue, Cindex, nonzero);
+}
+/** A method for matrix addition, this routine uses the
+ *idea of contiguously storing of values and indexes
+ * and the use of arraycopy()
+ */
+public SparseArrays addition(SparseArrays B){
+double[][] Cvalue = new double[dimension][1];
+int[][] Cindex = new int[dimension][1];
+int[] temp = new int[dimension];
+double[] tempValue = new double[dimension];
+int[] tempIndex = new int[dimension];
+double[][] Bvalue = B.getValueArray();
+int[][] Bindex = B.getIndexArray();
+int nonzero;
+double scalar = 0;
+int len = -1;
+int index = 0;
+int jcol = 0;
+int jpos = 0;
+for(int i = 0;i<temp.length;i++){temp[i]=-1;}
+for(int i = 0;i<Avalue.length;i++){
+double[] avalue = Avalue[i];
+int[] aindex = Aindex[i];
+for(int j = 0;j<avalue.length;j++){
+jcol = aindex[j];
+len++;
+tempIndex[len] = jcol;
+temp[jcol] = len;
+tempValue[len] = avalue[j];
+nonzero++;
+}
+double[] bvalue = Bvalue[i];
+int[] bindex = Bindex[i];
+for(int j = 0;j<bvalue.length;j++){
+jcol = bindex[j];
+jpos = temp[jcol];
+if(jpos == -1){
+len++;
+nonzero++;
+tempIndex[len] = jcol;
+temp[jcol] = len;
+tempValue[len] = bvalue[ii];
+}else{
+tempValue[jpos]+= bvalue[ii];
+}
+}
+}
+double[] cvalue = new double[len+1];
+int[] cindex = new int[len+1];
+System.arraycopy(tempValue, 0, cvalue, 0,len+1);
+System.arraycopy(tempIndex, 0, cindex, 0,len+1);
+Cvalue[i] = cvalue;
+Cindex[i] = cindex;
+for(int ii = 0;ii<len+1;ii++){temp[tempIndex[ii]]=-1;}
+len = -1;
+}
+return new SparseArrays(Cvalue, Cindex, nonzero);
+}
+/** A method for removing an element in Sparse Arrays
+*/
+public boolean remove(int i, int j){
+double[] avalue = Avalue[i];
+int[] aindex = Aindex[i];
+boolean isInRow = false;
+for(int ii = 0;ii<aindex.length;ii++){
+if(j==aindex[ii])isInRow = true;
+}
+if(isInRow){
+double[] value = new double[avalue.length-1];
+int[] index = new int[avalue.length-1];
+for(int ii = 0,jj=0;ii<aindex.length;ii++){
+if(j!=aindex[ii]){
+value[jj] = avalue[ii];
+index[jj] = aindex[ii];
+jj++;
+}
+}
+Avalue[i] = value;
+Aindex[i] = index;
+}
+return isInRow;
+}
+/** A method for inserting an element in Sparse Arrays
+*/
+public boolean setValue(int i, int j, double value){
+double[] avalue = Avalue[i];
+int[] aindex = Aindex[i];
+boolean test = true;
+for(int ii = 0;ii<aindex.length;ii++){
+if(aindex[ii]==j){
+    avalue[ii] = value;
+test = false;
+}
+}
+if(test){
+double[] valuenew = new double[aindex.length+1];
+int[] indexnew = new int[aindex.length+1];
+for(int ii = 0;ii<aindex.length;ii++){
+valuenew[ii] = avalue[ii];
+indexnew[ii] = aindex[ii];
+}
+valuenew[valuenew.length-1] = value;
+indexnew[indexnew.length-1] = j;
+Avalue[i] = valuenew;
+Aindex[i] = indexnew;
+}
+return test;
+ }
+/**Method for performing a symbolic factorisation on Sparse Arrays
+*/
+public void symbolicFactorisation(){
+int[] b = null, bi = null, bj = null;
+ double[]a = null, ai = null;
+ int x = 0, j1 = 0;
+ int xx = 0;
+ int yy = 0;
+ boolean test = false;
+ for(int i = 2;i<Aindex.length;i++){
+ bi = Aindex[i];
+ ai = Avalue[i];
+ for(int j = 1;j<i-1;j++){
+ bj = Aindex[j];
+ if(jIsInbi(j,bi)){
+ for(int z = 0;z<bj.length&&(!test);z++){
+ x = bj[z];
+ for(int y = 0;(y<stop)&&(y<bi.length)&&(!test);y++){
+ if(x==bi[y]){
+ test=true;
+ xx = x;
+ yy = y+1;
+ }
+ }
+ }
+ if(test){
+ a = new double[ai.length+1];
+ b = new int[bi.length+1];
+ for(int ii = 0,jj=0;ii<b.length;ii++,jj++){
+ if(ii==yy){
+ b[ii]=j;
+ a[ii]=0.0;
+ jj--;
+ }
+ else{
+ b[ii]=bi[jj];
+ a[ii]=ai[jj];
+ }
+}
+ Avalue[i] = b;
+ Aindex[i] = a;
+
+ test = false;
+}
+ }
+ }
+ }
+stop = 0;
+}
+/**Method for checking if there is an element already present in *position j
+in the row bi
+*/
+public boolean jIsInbi(int j, int[] bi){
+boolean test = true;
+ for(int i = 0;i<bi.length;i++){
+ if(bi[i]==j){
+ test = false;
+ }
+}
+ if(test==false){
+ for(int ii = 0;ii<bi.length;ii++){
+ if(bi[ii]>j){
+ stop = ii;
+ }
+ }
+ }
+ return test;
+}
+}
+
+2. The class SparseMatrix and Rows
+/**A class the stores a sparse matrix on the sparse matrix concept.
+*/
+public class SparseMatrix{
+private Rows[] rows;
+public SparseMatrix(Rows[] rows){this.rows=rows;}
+/**Method for performing a matrix-vector product
+*This is the approach similar to the Sparse Arrays implementation
+ */
+public Vector matrixvectorA(Vector v){
+double[] vec = v.getValueArray();
+double[] c = new double[vec.length];
+double z = 0;
+double[] value = null;
+int[] index = null;
+Rows row = null;
+for(int i = 0;i<vec.length;i++){
+row = rows[i];
+value = row.getValueArray();
+index = row.getIndexArray();
+for(int j = 0;j<value.length;j++){
+z+=value[j]*vec[index[j]];
+}
+c[i] = z;
+z = 0;
+}
+return new Vector(c, c.length);
+}
+/**Method for performing a matrix-vector product
+* This is the object-oriented approach
+ */
+public Vector matrixvectorB(Vector v){
+double[] vec = v.getValueArray();
+double[] c = new double[vec.length];
+double z = 0;
+double[] value = null;
+int[] index = null;
+Rows row = null;
+for(int i = 0;i<vec.length;i++){
+c[i] = rows[i].vectorproducts(v);
+}
+return new Vector(c, c.length);
+}
+}
+/**A class to represent the rows of the Sparse Matrix class
+ */
+public class Rows{
+private double[] values;
+private int[] indexes;
+public Rows(double[] values, int[] indexes){
+this.values = values;
+this.indexes = indexes;
+}
+/** Returns the row values.
+*/
+public double[] getValueArray(){return values;}
+/** Returns the row indexes.
+*/
+public int[] getIndexArray(){return indexes;}
+/** Performs a dot prodcut.
+*/
+public double vectorproducts(Vector v){
+double[] vec = v.getValueArray();
+double z = 0;
+for(int j = 0;j<values.length;j++){
+z+=values[j]*vec[indexes[j]];
+}
+return z;
+}
+}
+
+3. The class Vector
+/**The class Vector, this class stores a full vector
+ */
+ public class Vector {
+ double[] value;
+ int size;
+
+ public Vector(double[] value,int size){
+ this.size=size;
+ this.value=value;
+ }
+
+ /**Method for returning a value in the vector
+ */
+ public double getValue(int i){
+ return value[i];
+ }
+
+ /**Method for returning the size of the vector
+ */
+ public int getSize(){
+ return size;
+ }
+
+ /**Method for returning the value array of the vector
+ */
+ public double[] getValueArray(){
+ return value;
+ }
+ }
+
+ 
+
